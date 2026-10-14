@@ -1,17 +1,31 @@
 import { NextResponse } from 'next/server';
-import { getAnalyticsSummary, getAuditLogs } from '@/lib/db';
-import { CONNECTED_CHANNELS } from '@/lib/constants';
+import { getDashboardMetrics, getActionHistory } from '@/lib/db';
 
 export async function GET() {
   try {
-    const summary = getAnalyticsSummary();
-    const auditLogs = getAuditLogs();
+    const metrics = getDashboardMetrics();
+    const history = getActionHistory();
 
     return NextResponse.json({
       success: true,
-      analytics: summary,
-      channels: CONNECTED_CHANNELS,
-      recentAuditLogs: auditLogs.slice(0, 15),
+      metrics,
+      history,
+      // Backward compatibility fields
+      analytics: {
+        totalRevenueRescued: metrics.totalValueRescued,
+        totalRevenueAtRisk: metrics.totalValueAtRisk,
+        activeIncidentsCount: metrics.customersNeedingAttention,
+        rescuedIncidentsCount: metrics.completedActions,
+        totalIncidentsCount: metrics.customersNeedingAttention + metrics.completedActions,
+        recoverySuccessRate:
+          metrics.completedActions + metrics.customersNeedingAttention > 0
+            ? Math.round(
+                (metrics.completedActions /
+                  (metrics.completedActions + metrics.customersNeedingAttention)) *
+                  100
+              )
+            : 0,
+      },
     });
   } catch (error) {
     console.error('Error fetching analytics:', error);

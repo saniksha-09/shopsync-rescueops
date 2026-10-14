@@ -1,117 +1,100 @@
 'use client';
 
 import React from 'react';
-import { DollarSign, ShieldCheck, AlertOctagon, Zap, ArrowUpRight, TrendingUp } from 'lucide-react';
-import { AnalyticsSummary } from '@/types';
+import { Users, AlertTriangle, Clock, CheckCircle2, DollarSign } from 'lucide-react';
+import { DashboardMetrics } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 
 interface MetricCardsProps {
-  analytics: AnalyticsSummary | null;
+  metrics: DashboardMetrics | null;
 }
 
-export default function MetricCards({ analytics }: MetricCardsProps) {
-  const rescued = analytics?.totalRevenueRescued || 0;
-  const atRisk = analytics?.totalRevenueAtRisk || 0;
-  const activeCount = analytics?.activeIncidentsCount || 0;
-  const mttrSeconds = analytics?.mttrSeconds || 84;
-  const successRate = analytics?.recoverySuccessRate || 100;
+export default function MetricCards({ metrics }: MetricCardsProps) {
+  const needingAttention = metrics?.customersNeedingAttention ?? 0;
+  const highRisk = metrics?.highRiskCases ?? 0;
+  const pendingActions = metrics?.pendingActions ?? 0;
+  const rescuedValue = metrics?.totalValueRescued ?? 0;
+  const valueAtRisk = metrics?.totalValueAtRisk ?? 0;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* 1. Verified Revenue Rescued */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-900/40 border border-emerald-500/30 p-5 shadow-lg shadow-emerald-950/20">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
-            Verified Revenue Rescued
-          </span>
-          <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-            <ShieldCheck className="w-4 h-4" />
+      {/* 1. Customers Needing Attention */}
+      <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
+        <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+          <span>Customers Needing Attention</span>
+          <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <Users className="w-4 h-4" />
           </div>
         </div>
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-3xl font-extrabold text-white tracking-tight">
-            {formatCurrency(rescued)}
+          <span className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            {needingAttention}
           </span>
-          <span className="inline-flex items-center text-xs font-semibold text-emerald-400">
-            <TrendingUp className="w-3.5 h-3.5 mr-0.5" />
-            {successRate}% Success
-          </span>
+          <span className="text-xs text-slate-400">cases open</span>
         </div>
-        <div className="mt-2 text-xs text-slate-400 flex items-center justify-between border-t border-slate-800/80 pt-2">
-          <span>Automated playbooks executed</span>
-          <span className="font-medium text-slate-200">{analytics?.rescuedIncidentsCount || 0} incidents saved</span>
+        <div className="mt-2 pt-2 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between">
+          <span>Value at risk</span>
+          <span className="font-semibold text-amber-400">{formatCurrency(valueAtRisk)}</span>
         </div>
       </div>
 
-      {/* 2. Revenue Currently at Risk */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-900/40 border border-red-500/30 p-5 shadow-lg shadow-red-950/20">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-red-400">
-            Revenue at Immediate Risk
-          </span>
-          <div className="p-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse">
-            <AlertOctagon className="w-4 h-4" />
+      {/* 2. High-Risk Cases */}
+      <div className="p-4 rounded-xl bg-slate-900 border border-red-500/20 shadow-sm flex flex-col justify-between">
+        <div className="flex items-center justify-between text-xs text-red-400 font-medium">
+          <span>High-Risk Cases</span>
+          <div className="p-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20">
+            <AlertTriangle className="w-4 h-4" />
           </div>
         </div>
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-3xl font-extrabold text-white tracking-tight">
-            {formatCurrency(atRisk)}
+          <span className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            {highRisk}
           </span>
-          {atRisk > 0 && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-red-500/20 text-red-300 border border-red-500/30">
-              Needs Triage
-            </span>
-          )}
+          <span className="text-xs text-red-300 font-medium">urgent priority</span>
         </div>
-        <div className="mt-2 text-xs text-slate-400 flex items-center justify-between border-t border-slate-800/80 pt-2">
-          <span>Locked in sync discrepancies</span>
-          <span className="font-medium text-red-400">{activeCount} pending rescue</span>
+        <div className="mt-2 pt-2 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between">
+          <span>Imminent churn risk</span>
+          <span className="text-red-400 font-semibold">{highRisk > 0 ? 'Requires action' : 'None'}</span>
         </div>
       </div>
 
-      {/* 3. Active Glitches & Discrepancies */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-900/40 border border-slate-800 p-5 shadow-lg">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Active Store Incidents
-          </span>
-          <div className="p-2 rounded-xl bg-slate-800 text-amber-400 border border-slate-700/60">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
-            </span>
+      {/* 3. Pending Actions */}
+      <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 shadow-sm flex flex-col justify-between">
+        <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+          <span>Pending Actions</span>
+          <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <Clock className="w-4 h-4" />
           </div>
         </div>
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-3xl font-extrabold text-white tracking-tight">{activeCount}</span>
-          <span className="text-xs text-slate-400">discrepancies active</span>
+          <span className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            {pendingActions}
+          </span>
+          <span className="text-xs text-slate-400">ready to review</span>
         </div>
-        <div className="mt-2 text-xs text-slate-400 flex items-center justify-between border-t border-slate-800/80 pt-2">
-          <span>Mean Detection Time</span>
-          <span className="font-semibold text-emerald-400">14 seconds (Real-time)</span>
+        <div className="mt-2 pt-2 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between">
+          <span>Awaiting approval</span>
+          <span className="text-slate-300 font-semibold">{pendingActions} pending</span>
         </div>
       </div>
 
-      {/* 4. Mean Time to Recover (MTTR) */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-900/40 border border-indigo-500/30 p-5 shadow-lg shadow-indigo-950/20">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
-            Autonomous MTTR
-          </span>
-          <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-            <Zap className="w-4 h-4" />
+      {/* 4. Recovered Revenue */}
+      <div className="p-4 rounded-xl bg-slate-900 border border-emerald-500/20 shadow-sm flex flex-col justify-between">
+        <div className="flex items-center justify-between text-xs text-emerald-400 font-medium">
+          <span>Recovered Revenue</span>
+          <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <CheckCircle2 className="w-4 h-4" />
           </div>
         </div>
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-3xl font-extrabold text-white tracking-tight">{mttrSeconds}s</span>
-          <span className="text-xs text-emerald-400 font-medium">98.4% faster</span>
+          <span className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+            {formatCurrency(rescuedValue)}
+          </span>
+          <span className="text-xs text-emerald-400 font-medium">rescued</span>
         </div>
-        <div className="mt-2 text-xs text-slate-400 flex items-center justify-between border-t border-slate-800/80 pt-2">
-          <span>Industry manual average</span>
-          <span className="line-through text-slate-500">4.2 hours</span>
+        <div className="mt-2 pt-2 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between">
+          <span>Completed actions</span>
+          <span className="text-emerald-400 font-semibold">{metrics?.completedActions ?? 0} rescued</span>
         </div>
       </div>
     </div>

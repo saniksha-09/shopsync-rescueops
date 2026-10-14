@@ -1,8 +1,6 @@
 {
   "geminiApiKey": "",
   "aiModel": "gemini-1.5-flash",
-  "autoHealCritical": false,
-  "slackWebhookUrl": "",
-  "simulatedLatencyMs": 650,
+  "autoApproveLowRisk": false,
   "demoMode": true
 }

@@ -1,4 +1,4 @@
-import { AiDiagnosis, Incident } from '@/types';
+import { AiRecommendation, CustomerRiskCase } from '@/types';
 import { getSettings } from './db';
 
 interface GeminiResponse {
@@ -15,39 +15,39 @@ interface GeminiResponse {
   };
 }
 
-export async function diagnoseIncidentWithGemini(incident: Incident): Promise<AiDiagnosis> {
+export async function generateCustomerRecoveryRecommendation(
+  customerCase: CustomerRiskCase
+): Promise<AiRecommendation> {
   const settings = getSettings();
   const apiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY;
 
-  // If no Gemini API key is configured, use the smart deterministic diagnostic engine
+  // If no Gemini API key is configured, return the rule-based recovery recommendation
   if (!apiKey || apiKey.trim() === '') {
-    return generateSmartFallbackDiagnosis(incident, 'Intelligent Fallback Engine (No API Key)');
+    return generateRuleBasedRecommendation(customerCase);
   }
 
   try {
-    const prompt = `You are ShopSync RescueOps Senior Site Reliability and E-Commerce Operations Engineer.
-Analyze this e-commerce operational sync incident and return a valid JSON response with the exact schema below.
+    const prompt = `You are ShopSync RescueOps Senior E-Commerce Customer Recovery Specialist.
+Analyze this flagged customer risk case and generate a practical next-best recovery action and personalized customer outreach message draft.
 
-Incident Details:
-- Title: ${incident.title}
-- Store: ${incident.storeName}
-- Channel: ${incident.channel}
-- Category: ${incident.category}
-- Severity: ${incident.severity}
-- Revenue at Risk: $${incident.revenueAtRisk}
-- Affected Items/Orders: ${incident.affectedItemsCount}
-- Reported Root Cause Code: ${incident.rootCauseCode}
-- Raw Payload/Trace:
-${typeof incident.rawPayload === 'string' ? incident.rawPayload : JSON.stringify(incident.rawPayload, null, 2)}
+Customer Details:
+- Customer Name: ${customerCase.customerName}
+- Customer Email: ${customerCase.customerEmail}
+- Channel: ${customerCase.channel}
+- Order / Cart ID: ${customerCase.orderOrCartId}
+- Cart / Order Value: $${customerCase.value}
+- Items: ${customerCase.itemsDescription}
+- Risk Level: ${customerCase.riskLevel}
+- Flag Reason: ${customerCase.flagReason}
+- Evidence: ${customerCase.evidence}
 
-Provide your response in strictly JSON format (no markdown formatting, no code fences):
+Respond strictly in valid JSON (no markdown formatting, no code fences):
 {
-  "summary": "2-sentence clear plain English explanation for store managers of why this failure happened",
-  "technicalDiagnosis": "Deep technical analysis explaining the exact microservice failure, HTTP code, or payload conflict",
-  "rootCauseCode": "Specific error code like ERR_INVENTORY_MUTEX_TIMEOUT_408 or ERR_WEBHOOK_SSL_HANDSHAKE_FAILED",
-  "impactAssessment": "Detailed financial and operational assessment of the risk",
-  "recommendedPlaybook": "One of: reconcile_inventory | redrive_webhook | bypass_payment_fallback | rescue_cart_vip | quarantine_price_anomaly",
-  "confidenceScore": 95
+  "actionTitle": "Specific concise action title like 'Send 1-Click Reserved Checkout with 10% Courtesy Discount'",
+  "actionType": "recover_cart", // One of: recover_cart | redrive_order | reconcile_stock | contact_customer
+  "explanation": "2-sentence practical explanation of why this action is recommended based on the evidence",
+  "suggestedDiscount": "10% Courtesy Discount",
+  "messageDraft": "Warm, professional, personalized 2-3 sentence message to the customer addressing the exact issue and providing a direct solution"
 }`;
 
     const modelName = settings.aiModel || 'gemini-1.5-flash';
@@ -55,126 +55,92 @@ Provide your response in strictly JSON format (no markdown formatting, no code f
 
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
+        contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.2,
           topP: 0.95,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 800,
         },
       }),
     });
 
     if (!response.ok) {
-      const errText = await response.text();
-      console.warn('Gemini API returned error, switching to fallback:', response.status, errText);
-      return generateSmartFallbackDiagnosis(incident, `Smart Fallback (API error ${response.status})`);
+      console.warn('Gemini API returned error, switching to rule-based fallback:', response.status);
+      return generateRuleBasedRecommendation(customerCase);
     }
 
     const data: GeminiResponse = await response.json();
     const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!candidateText) {
-      return generateSmartFallbackDiagnosis(incident, 'Smart Fallback (Empty response)');
+      return generateRuleBasedRecommendation(customerCase);
     }
 
-    // Clean JSON if model returned markdown codeblocks
-    const cleaned = candidateText
-      .replace(/```json/gi, '')
-      .replace(/```/g, '')
-      .trim();
-
+    const cleaned = candidateText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleaned);
 
     return {
-      summary: parsed.summary || 'AI diagnostic completed successfully.',
-      technicalDiagnosis: parsed.technicalDiagnosis || 'Payload anomaly detected in sync stream.',
-      rootCauseCode: parsed.rootCauseCode || incident.rootCauseCode,
-      impactAssessment: parsed.impactAssessment || `$${incident.revenueAtRisk} revenue at risk.`,
-      recommendedPlaybook: parsed.recommendedPlaybook || 'reconcile_inventory',
-      confidenceScore: typeof parsed.confidenceScore === 'number' ? parsed.confidenceScore : 95,
+      actionTitle: parsed.actionTitle || 'Customer Recovery Outreach',
+      actionType: parsed.actionType || 'recover_cart',
+      explanation: parsed.explanation || 'Practical action based on customer checkout evidence.',
+      suggestedDiscount: parsed.suggestedDiscount || undefined,
+      messageDraft: parsed.messageDraft || `Hi ${customerCase.customerName.split(' ')[0]}, we noticed an issue with your checkout and are here to help!`,
       isAiGenerated: true,
-      modelUsed: modelName,
+      modelUsed: `Gemini (${modelName})`,
     };
   } catch (error) {
     console.error('Error invoking Gemini API:', error);
-    return generateSmartFallbackDiagnosis(incident, 'Smart Fallback Engine (Network/Parse error)');
+    return generateRuleBasedRecommendation(customerCase);
   }
 }
 
-function generateSmartFallbackDiagnosis(incident: Incident, fallbackReason: string): AiDiagnosis {
-  // If incident already has a pre-computed scenario diagnosis, reuse it
-  if (incident.aiDiagnosis) {
+function generateRuleBasedRecommendation(customerCase: CustomerRiskCase): AiRecommendation {
+  const firstName = customerCase.customerName.split(' ')[0] || customerCase.customerName;
+
+  if (customerCase.flagReason.toLowerCase().includes('webhook') || customerCase.flagReason.toLowerCase().includes('unfulfilled')) {
     return {
-      ...incident.aiDiagnosis,
-      modelUsed: fallbackReason,
+      actionTitle: 'Re-drive Order Ingestion to Warehouse & Dispatch Confirmation',
+      actionType: 'redrive_order',
+      explanation: 'Customer payment is verified, but backend sync failed to trigger order creation. Re-driving prevents delivery delay and customer dispute.',
+      messageDraft: `Hi ${firstName}, good news! Your payment for ${customerCase.itemsDescription} was successfully confirmed. We have routed your order (${customerCase.orderOrCartId}) directly to our packaging queue. Track your status here: https://store.com/orders/track/${customerCase.orderOrCartId}`,
+      isAiGenerated: false,
+      modelUsed: 'Rule-Based Smart Recovery Engine',
     };
   }
 
-  // Heuristic generation based on category & payload
-  switch (incident.category) {
-    case 'inventory_desync':
-      return {
-        summary: `Race condition between physical ERP counts and ${incident.channel} active reserves caused inventory to falsely lock up.`,
-        technicalDiagnosis: `Lock acquisition timeout in distributed stock cache during multi-channel delta sync. Transaction rolled back to safety threshold.`,
-        rootCauseCode: incident.rootCauseCode || 'ERR_INVENTORY_MUTEX_TIMEOUT',
-        impactAssessment: `$${incident.revenueAtRisk.toLocaleString()} GMV blocked; ${incident.affectedItemsCount} units unavailable to buying customers.`,
-        recommendedPlaybook: 'reconcile_inventory',
-        confidenceScore: 94,
-        isAiGenerated: false,
-        modelUsed: fallbackReason,
-      };
-    case 'webhook_drop':
-      return {
-        summary: `Webhook delivery from ${incident.channel} failed due to handshake timeout or cryptographic signature expiration.`,
-        technicalDiagnosis: `HTTP gateway returned error during order notification ingestion. Event stored in dead-letter queue without order progression.`,
-        rootCauseCode: incident.rootCauseCode || 'ERR_WEBHOOK_DELIVERY_DROP',
-        impactAssessment: `${incident.affectedItemsCount} customer orders caught in unpaid limbo. Fulfillment SLA at risk.`,
-        recommendedPlaybook: 'redrive_webhook',
-        confidenceScore: 96,
-        isAiGenerated: false,
-        modelUsed: fallbackReason,
-      };
-    case 'payment_gateway_stall':
-      return {
-        summary: `Payment processor dropped customer transaction authorization during multi-factor authentication challenge.`,
-        technicalDiagnosis: `3DS authentication frame exceeded 180-second timeout threshold. PaymentIntent status stuck in 'requires_action'.`,
-        rootCauseCode: incident.rootCauseCode || 'ERR_PAYMENT_GATEWAY_3DS_TIMEOUT',
-        impactAssessment: `$${incident.revenueAtRisk.toLocaleString()} high-intent payment drop-off across ${incident.affectedItemsCount} checkouts.`,
-        recommendedPlaybook: 'bypass_payment_fallback',
-        confidenceScore: 95,
-        isAiGenerated: false,
-        modelUsed: fallbackReason,
-      };
-    case 'abandoned_cart_stall':
-      return {
-        summary: `High-value customer checkout halted after third-party API timeout during shipping or tax computation.`,
-        technicalDiagnosis: `Rate engine RPC returned timeout (>5000ms), disabling the primary order submission CTA in front-end state machine.`,
-        rootCauseCode: incident.rootCauseCode || 'ERR_TAX_OR_CARRIER_RPC_TIMEOUT',
-        impactAssessment: `$${incident.revenueAtRisk.toLocaleString()} stalled cart with high churn risk.`,
-        recommendedPlaybook: 'rescue_cart_vip',
-        confidenceScore: 93,
-        isAiGenerated: false,
-        modelUsed: fallbackReason,
-      };
-    case 'price_mismatch':
-    default:
-      return {
-        summary: `Erroneous pricing or inventory delta detected exceeding store safety guardrails.`,
-        technicalDiagnosis: `Catalog anomaly detection tripped: price deviation > 50% from verified historical average.`,
-        rootCauseCode: incident.rootCauseCode || 'ERR_CATALOG_ANOMALY_TRIGGERED',
-        impactAssessment: `Immediate margin erosion of $${incident.revenueAtRisk.toLocaleString()} prevented through automated quarantine.`,
-        recommendedPlaybook: 'quarantine_price_anomaly',
-        confidenceScore: 97,
-        isAiGenerated: false,
-        modelUsed: fallbackReason,
-      };
+  if (customerCase.flagReason.toLowerCase().includes('tax') || customerCase.flagReason.toLowerCase().includes('shipping')) {
+    return {
+      actionTitle: 'Send VIP Concierge Direct Checkout with Free Expedited Shipping',
+      actionType: 'contact_customer',
+      explanation: 'Customer abandoned checkout after calculation latency. Offering complimentary express delivery eliminates friction and recovers high-ticket revenue.',
+      suggestedDiscount: 'Free Expedited Shipping',
+      messageDraft: `Hi ${firstName}, we noticed our shipping system experienced a slight delay during your visit. To ensure a smooth experience, we have unlocked free express delivery on your items (${customerCase.itemsDescription}). Finish your order in one click: https://store.com/checkout/rescue/${customerCase.orderOrCartId}`,
+      isAiGenerated: false,
+      modelUsed: 'Rule-Based Smart Recovery Engine',
+    };
   }
+
+  if (customerCase.flagReason.toLowerCase().includes('stock') || customerCase.flagReason.toLowerCase().includes('inventory')) {
+    return {
+      actionTitle: 'One-Click Reserved Checkout with 10% Loyalty Courtesy',
+      actionType: 'recover_cart',
+      explanation: 'Customer faced false stockout error while physical stock is available. Reserving the item and sending an apology discount secures immediate conversion.',
+      suggestedDiscount: '10% OFF',
+      messageDraft: `Hi ${firstName}, we apologize for the temporary inventory error you saw earlier! We have verified stock and reserved your items (${customerCase.itemsDescription}) with an exclusive 10% courtesy discount: https://store.com/rescue/${customerCase.orderOrCartId}`,
+      isAiGenerated: false,
+      modelUsed: 'Rule-Based Smart Recovery Engine',
+    };
+  }
+
+  return {
+    actionTitle: 'Personalized Customer Recovery Outreach',
+    actionType: 'recover_cart',
+    explanation: 'High-intent cart stalled before completion. Personalized outreach with direct checkout link offers the highest recovery probability.',
+    suggestedDiscount: '5% Courtesy Discount',
+    messageDraft: `Hi ${firstName}, we noticed you left some great items in your cart (${customerCase.itemsDescription}). We have saved your selection so you can pick up right where you left off: https://store.com/rescue/${customerCase.orderOrCartId}`,
+    isAiGenerated: false,
+    modelUsed: 'Rule-Based Smart Recovery Engine',
+  };
 }

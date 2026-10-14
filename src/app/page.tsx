@@ -2,25 +2,21 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
-import HeroLanding from '@/components/HeroLanding';
 import MetricCards from '@/components/MetricCards';
-import AnalyticsCharts from '@/components/AnalyticsCharts';
-import IncidentQueue from '@/components/IncidentQueue';
-import IncidentDetailModal from '@/components/IncidentDetailModal';
+import CustomerRiskTable from '@/components/CustomerRiskTable';
+import CustomerDetailModal from '@/components/CustomerDetailModal';
+import ActionHistoryTable from '@/components/ActionHistoryTable';
 import SimulatorModal from '@/components/SimulatorModal';
-import AuditLogModal from '@/components/AuditLogModal';
 import SettingsModal from '@/components/SettingsModal';
 import {
-  Incident,
-  AnalyticsSummary,
-  StoreChannelInfo,
+  CustomerRiskCase,
+  DashboardMetrics,
+  ActionHistoryEntry,
   SystemSettings,
   ChannelType,
-  IncidentCategory,
-  IncidentSeverity,
+  RiskLevel,
 } from '@/types';
-import { AuditLogEntry } from '@/lib/db';
-import { Sparkles, CheckCircle2, AlertTriangle, X } from 'lucide-react';
+import { CheckCircle2, Sparkles, X, Users, History, AlertTriangle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ToastState {
@@ -30,21 +26,20 @@ interface ToastState {
 }
 
 export default function HomePage() {
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
-  const [channels, setChannels] = useState<StoreChannelInfo[]>([]);
+  const [activeTab, setActiveTab] = useState<'cases' | 'history'>('cases');
+  const [cases, setCases] = useState<CustomerRiskCase[]>([]);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [history, setHistory] = useState<ActionHistoryEntry[]>([]);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
 
-  // Modals
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  // Modals & Drawers
+  const [selectedCase, setSelectedCase] = useState<CustomerRiskCase | null>(null);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
-  const [isAuditOpen, setIsAuditOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Loading states
-  const [rescuingIncidentId, setRescuingIncidentId] = useState<string | null>(null);
-  const [isDiagnosing, setIsDiagnosing] = useState(false);
+  // Processing states
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
 
@@ -58,29 +53,28 @@ export default function HomePage() {
     }, 4500);
   };
 
-  // Fetch all core data
+  // Fetch core application state
   const fetchData = useCallback(async () => {
     try {
-      const [incRes, anaRes, setRes] = await Promise.all([
+      const [casesRes, analyticsRes, settingsRes] = await Promise.all([
         fetch('/api/incidents'),
         fetch('/api/analytics'),
         fetch('/api/settings'),
       ]);
 
-      if (incRes.ok) {
-        const data = await incRes.json();
-        setIncidents(data.incidents || []);
+      if (casesRes.ok) {
+        const data = await casesRes.json();
+        setCases(data.cases || data.incidents || []);
       }
 
-      if (anaRes.ok) {
-        const data = await anaRes.json();
-        setAnalytics(data.analytics || null);
-        setChannels(data.channels || []);
-        setAuditLogs(data.recentAuditLogs || []);
+      if (analyticsRes.ok) {
+        const data = await analyticsRes.json();
+        setMetrics(data.metrics || null);
+        setHistory(data.history || []);
       }
 
-      if (setRes.ok) {
-        const data = await setRes.json();
+      if (settingsRes.ok) {
+        const data = await settingsRes.json();
         setSettings(data.settings || null);
       }
     } catch (err) {
@@ -92,73 +86,122 @@ export default function HomePage() {
     fetchData();
   }, [fetchData]);
 
-  // Execute rescue playbook
-  const handleRescuePlaybook = async (incidentId: string, playbookId: string) => {
-    setRescuingIncidentId(incidentId);
+  // Action 1: Approve Action
+  const handleApproveAction = async (caseId: string, notes?: string) => {
+    setIsProcessingAction(true);
     try {
-      const res = await fetch(`/api/incidents/${incidentId}/rescue`, {
+      const res = await fetch(`/api/incidents/${caseId}/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playbookId }),
+        body: JSON.stringify({ action: 'approve', notes }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        // Trigger celebratory confetti
+        showToast(`✓ Action approved for ${data.case.customerName}`, 'success');
+        if (selectedCase && selectedCase.id === caseId) {
+          setSelectedCase(data.case);
+        }
+        await fetchData();
+      } else {
+        showToast(data.error || 'Failed to approve action', 'alert');
+      }
+    } catch {
+      showToast('Error approving action', 'alert');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  // Action 2: Complete Action & Rescue
+  const handleCompleteAction = async (caseId: string, actionName?: string, notes?: string) => {
+    setIsProcessingAction(true);
+    try {
+      const res = await fetch(`/api/incidents/${caseId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'complete', actionName, notes }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
         confetti({
-          particleCount: 100,
-          spread: 80,
+          particleCount: 80,
+          spread: 70,
           origin: { y: 0.6 },
         });
 
         showToast(
-          `✓ Rescued ${data.incident.title} (Recovered $${data.revenueRescued.toLocaleString()})`,
+          `✓ Rescued ${data.case.customerName} (Recovered $${data.case.value.toLocaleString()})`,
           'success'
         );
 
-        // Update selected incident modal if open
-        if (selectedIncident && selectedIncident.id === incidentId) {
-          setSelectedIncident(data.incident);
+        if (selectedCase && selectedCase.id === caseId) {
+          setSelectedCase(data.case);
         }
-
         await fetchData();
       } else {
-        showToast(data.error || 'Failed to execute rescue playbook', 'alert');
+        showToast(data.error || 'Failed to complete recovery action', 'alert');
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Rescue failed';
-      showToast(msg, 'alert');
+    } catch {
+      showToast('Error completing recovery action', 'alert');
     } finally {
-      setRescuingIncidentId(null);
+      setIsProcessingAction(false);
     }
   };
 
-  // Run AI diagnosis
-  const handleRunAiDiagnose = async (incidentId: string) => {
-    setIsDiagnosing(true);
+  // Action 3: Dismiss Case
+  const handleDismissCase = async (caseId: string, reason?: string) => {
+    setIsProcessingAction(true);
     try {
-      const res = await fetch(`/api/incidents/${incidentId}/diagnose`, {
+      const res = await fetch(`/api/incidents/${caseId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'dismiss', reason }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`Case for ${data.case.customerName} dismissed`, 'info');
+        if (selectedCase && selectedCase.id === caseId) {
+          setSelectedCase(data.case);
+        }
+        await fetchData();
+      } else {
+        showToast(data.error || 'Failed to dismiss case', 'alert');
+      }
+    } catch {
+      showToast('Error dismissing case', 'alert');
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  // Action 4: Re-generate AI Recommendation
+  const handleRegenerateAi = async (caseId: string) => {
+    setIsAiLoading(true);
+    try {
+      const res = await fetch(`/api/incidents/${caseId}/diagnose`, {
         method: 'POST',
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        showToast('✓ Gemini AI diagnosis completed', 'success');
-        if (selectedIncident && selectedIncident.id === incidentId) {
-          setSelectedIncident(data.incident);
+        showToast('✓ AI recommendation updated', 'success');
+        if (selectedCase && selectedCase.id === caseId) {
+          setSelectedCase(data.case);
         }
         await fetchData();
       } else {
-        showToast(data.error || 'Failed to complete AI diagnosis', 'alert');
+        showToast(data.error || 'Failed to generate recommendation', 'alert');
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'AI diagnosis failed';
-      showToast(msg, 'alert');
+    } catch {
+      showToast('Error generating AI recommendation', 'alert');
     } finally {
-      setIsDiagnosing(false);
+      setIsAiLoading(false);
     }
   };
 
-  // Simulate preset scenario
+  // Simulation: Preset Scenario
   const handleSimulateScenario = async (scenarioId: string) => {
     setIsSimulating(true);
     try {
@@ -169,31 +212,30 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        showToast(`⚡ Incident Injected: ${data.incident.title}`, 'alert');
+        showToast(`⚡ Flagged Customer Injected: ${data.case.customerName}`, 'alert');
         await fetchData();
-        // Automatically open the new incident so judge sees the immediate impact
-        setSelectedIncident(data.incident);
+        setSelectedCase(data.case);
+        setActiveTab('cases');
       } else {
         showToast(data.error || 'Failed to simulate scenario', 'alert');
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Simulation failed';
-      showToast(msg, 'alert');
+    } catch {
+      showToast('Simulation failed', 'alert');
     } finally {
       setIsSimulating(false);
     }
   };
 
-  // Simulate custom scenario
+  // Simulation: Custom Scenario
   const handleSimulateCustom = async (customData: {
-    title: string;
-    description: string;
+    customerName: string;
+    customerEmail: string;
     channel: ChannelType;
-    category: IncidentCategory;
-    severity: IncidentSeverity;
-    revenueAtRisk: number;
-    affectedItemsCount: number;
-    rootCauseCode: string;
+    value: number;
+    riskLevel: RiskLevel;
+    flagReason: string;
+    evidence: string;
+    itemsDescription: string;
   }) => {
     setIsSimulating(true);
     try {
@@ -204,21 +246,21 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        showToast(`⚡ Injected Custom Glitch: ${data.incident.title}`, 'alert');
+        showToast(`⚡ Custom Case Injected: ${data.case.customerName}`, 'alert');
         await fetchData();
-        setSelectedIncident(data.incident);
+        setSelectedCase(data.case);
+        setActiveTab('cases');
       } else {
-        showToast(data.error || 'Failed to inject custom glitch', 'alert');
+        showToast(data.error || 'Failed to inject custom case', 'alert');
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Simulation failed';
-      showToast(msg, 'alert');
+    } catch {
+      showToast('Simulation failed', 'alert');
     } finally {
       setIsSimulating(false);
     }
   };
 
-  // Save settings
+  // Settings Save
   const handleSaveSettings = async (newSettings: Partial<SystemSettings>) => {
     try {
       const res = await fetch('/api/settings', {
@@ -235,17 +277,17 @@ export default function HomePage() {
     }
   };
 
-  // Reset demo
+  // Reset Demo Data
   const handleResetDemo = async () => {
-    if (!confirm('Reset all demo incidents, metrics, and audit logs to original clean state?')) {
+    if (!confirm('Reset customer cases and history to clean initial sample state?')) {
       return;
     }
     setIsResetting(true);
     try {
       const res = await fetch('/api/incidents', { method: 'DELETE' });
       if (res.ok) {
-        showToast('✓ System reset to clean hackathon demo state', 'info');
-        setSelectedIncident(null);
+        showToast('✓ Reset to clean demonstration state', 'info');
+        setSelectedCase(null);
         await fetchData();
       }
     } catch {
@@ -257,65 +299,59 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Top Navbar */}
+      {/* Top Navigation */}
       <Navbar
-        analytics={analytics}
-        channels={channels}
+        activeTab={activeTab}
+        onTabChange={(tab) => setActiveTab(tab)}
+        metrics={metrics}
         settings={settings}
         onOpenSimulator={() => setIsSimulatorOpen(true)}
-        onOpenAudit={() => setIsAuditOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onResetDemo={handleResetDemo}
         isResetting={isResetting}
       />
 
-      {/* Main Container */}
+      {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Startup Hero & Architecture Walkthrough */}
-        <HeroLanding onOpenSimulator={() => setIsSimulatorOpen(true)} />
+        {/* Concise Manager Metrics */}
+        <MetricCards metrics={metrics} />
 
-        {/* Executive Metric Cards */}
-        <MetricCards analytics={analytics} />
+        {/* View 1: Customer Risk Cases Queue */}
+        {activeTab === 'cases' && (
+          <div className="space-y-4">
+            <CustomerRiskTable
+              cases={cases}
+              onSelectCase={(c) => setSelectedCase(c)}
+            />
+          </div>
+        )}
 
-        {/* Channel & Category Visual Analytics */}
-        <AnalyticsCharts analytics={analytics} />
-
-        {/* Live Incident Queue & Triage Feed */}
-        <IncidentQueue
-          incidents={incidents}
-          onSelectIncident={(inc) => setSelectedIncident(inc)}
-          onInstantRescue={(inc) =>
-            handleRescuePlaybook(
-              inc.id,
-              inc.aiDiagnosis?.recommendedPlaybook || 'reconcile_inventory'
-            )
-          }
-          rescuingIncidentId={rescuingIncidentId}
-          onOpenSimulator={() => setIsSimulatorOpen(true)}
-        />
+        {/* View 2: Action History */}
+        {activeTab === 'history' && (
+          <div className="space-y-4">
+            <ActionHistoryTable history={history} />
+          </div>
+        )}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-400">ShopSync RescueOps</span>
-            <span>• Built for Hackathon Demonstration</span>
-          </div>
-          <div>
-            Powered by <strong>Next.js 16</strong>, <strong>Tailwind CSS v4</strong> & <strong>Google Gemini AI</strong>
-          </div>
+      <footer className="border-t border-slate-900 bg-slate-950 py-5 text-center text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>ShopSync RescueOps • Customer Risk & Order Recovery Engine</span>
+          <span>Powered by Next.js 16 & Google Gemini AI</span>
         </div>
       </footer>
 
-      {/* Modals */}
-      <IncidentDetailModal
-        incident={selectedIncident}
-        onClose={() => setSelectedIncident(null)}
-        onRunRescue={handleRescuePlaybook}
-        onRunAiDiagnose={handleRunAiDiagnose}
-        isRescuing={Boolean(rescuingIncidentId)}
-        isDiagnosing={isDiagnosing}
+      {/* Modals & Drawers */}
+      <CustomerDetailModal
+        customerCase={selectedCase}
+        onClose={() => setSelectedCase(null)}
+        onApproveAction={handleApproveAction}
+        onCompleteAction={handleCompleteAction}
+        onDismissCase={handleDismissCase}
+        onRegenerateAi={handleRegenerateAi}
+        isProcessing={isProcessingAction}
+        isAiLoading={isAiLoading}
       />
 
       <SimulatorModal
@@ -326,12 +362,6 @@ export default function HomePage() {
         isSimulating={isSimulating}
       />
 
-      <AuditLogModal
-        isOpen={isAuditOpen}
-        onClose={() => setIsAuditOpen(false)}
-        logs={auditLogs}
-      />
-
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -339,11 +369,11 @@ export default function HomePage() {
         onSaveSettings={handleSaveSettings}
       />
 
-      {/* Floating Toast Notification */}
+      {/* Toast Notification */}
       {toast.show && (
-        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 duration-300">
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 duration-200">
           <div
-            className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-semibold backdrop-blur-md ${
+            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-xl border text-xs font-semibold backdrop-blur-md ${
               toast.type === 'success'
                 ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200 shadow-emerald-950/50'
                 : toast.type === 'alert'

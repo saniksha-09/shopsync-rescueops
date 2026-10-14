@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getIncidentById, updateIncident } from '@/lib/db';
-import { diagnoseIncidentWithGemini } from '@/lib/gemini';
+import { getCustomerCaseById, updateCustomerCase } from '@/lib/db';
+import { generateCustomerRecoveryRecommendation } from '@/lib/gemini';
 
 export async function POST(
   req: Request,
@@ -8,26 +8,27 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const incident = getIncidentById(id);
+    const customerCase = getCustomerCaseById(id);
 
-    if (!incident) {
-      return NextResponse.json({ success: false, error: 'Incident not found' }, { status: 404 });
+    if (!customerCase) {
+      return NextResponse.json({ success: false, error: 'Customer case not found' }, { status: 404 });
     }
 
-    const diagnosis = await diagnoseIncidentWithGemini(incident);
+    const recommendation = await generateCustomerRecoveryRecommendation(customerCase);
 
-    // Save diagnosis to incident record
-    const updated = updateIncident(id, {
-      aiDiagnosis: diagnosis,
+    const updated = updateCustomerCase(id, {
+      aiRecommendation: recommendation,
     });
 
-    return NextResponse.json({ success: true, diagnosis, incident: updated });
+    return NextResponse.json({
+      success: true,
+      recommendation,
+      case: updated,
+      incident: updated,
+    });
   } catch (error: unknown) {
-    console.error('Error generating AI diagnosis:', error);
-    const errorMessage = error instanceof Error ? error.message : 'AI diagnosis failed';
-    return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status: 500 }
-    );
+    console.error('Error generating AI recommendation:', error);
+    const errorMessage = error instanceof Error ? error.message : 'AI recommendation failed';
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }

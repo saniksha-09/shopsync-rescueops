@@ -31,7 +31,7 @@ export default function SettingsModal({
 }: SettingsModalProps) {
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('gemini-1.5-flash');
-  const [autoHeal, setAutoHeal] = useState(false);
+  const [autoApproveLowRisk, setAutoApproveLowRisk] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
@@ -40,7 +40,7 @@ export default function SettingsModal({
     if (settings) {
       setApiKey(settings.geminiApiKey || '');
       setModel(settings.aiModel || 'gemini-1.5-flash');
-      setAutoHeal(Boolean(settings.autoHealCritical));
+      setAutoApproveLowRisk(Boolean(settings.autoApproveLowRisk));
     }
   }, [settings]);
 
@@ -52,7 +52,7 @@ export default function SettingsModal({
     await onSaveSettings({
       geminiApiKey: apiKey.trim(),
       aiModel: model,
-      autoHealCritical: autoHeal,
+      autoApproveLowRisk,
     });
     setIsSaving(false);
     onClose();
@@ -198,24 +198,23 @@ export default function SettingsModal({
             </div>
           </div>
 
-          {/* Autonomous SRE Policy */}
-          <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3">
-            <span className="text-sm font-bold text-white block">Autonomous Operational Policy</span>
+          {/* Autonomous Approval Policy */}
+          <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-3">
+            <span className="text-sm font-bold text-white block">Manager Approval Policy</span>
 
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
-                checked={autoHeal}
-                onChange={(e) => setAutoHeal(e.target.checked)}
+                checked={autoApproveLowRisk}
+                onChange={(e) => setAutoApproveLowRisk(e.target.checked)}
                 className="mt-0.5 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-0"
               />
               <div>
                 <span className="font-semibold text-slate-200">
-                  Enable Zero-Touch Auto-Healing for CRITICAL Incidents
+                  Auto-Approve Low Risk Address & Formatting Mismatches
                 </span>
                 <p className="text-slate-400 text-[11px] mt-0.5 leading-normal">
-                  Automatically triggers the recommended playbook without requiring manual operator confirmation
-                  when Revenue at Risk exceeds $10,000.
+                  Automatically approves recovery playbooks for verified repeat customers with low risk scores.
                 </p>
               </div>
             </label>

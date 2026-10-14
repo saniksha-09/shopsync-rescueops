@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { executeRescuePlaybook } from '@/lib/playbooks';
+import { completeCaseAction } from '@/lib/db';
 
 export async function POST(
   req: Request,
@@ -8,16 +8,24 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
-    const playbookId = body.playbookId;
+    const actionName = body.actionName || body.playbookId || 'Instant Recovery Action';
 
-    const result = await executeRescuePlaybook(id, playbookId);
-    return NextResponse.json({ ...result });
+    const result = completeCaseAction(id, actionName);
+
+    if (!result) {
+      return NextResponse.json({ success: false, error: 'Customer case not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      case: result,
+      incident: result,
+      revenueRescued: result.value,
+      message: `Successfully recovered customer case ${id}`,
+    });
   } catch (error: unknown) {
-    console.error('Error executing rescue playbook:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Playbook execution failed';
-    return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status: 500 }
-    );
+    console.error('Error recovering case:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Action failed';
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }

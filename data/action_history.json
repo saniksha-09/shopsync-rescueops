@@ -1,0 +1,24 @@
+[
+  {
+    "id": "HIST-201",
+    "caseId": "CASE-105",
+    "customerName": "Amara Okafor",
+    "channel": "tiktok_shop",
+    "actionTaken": "Sent SMS One-Touch Apple Pay Recovery Link",
+    "outcome": "COMPLETED",
+    "valueRescued": 290,
+    "timestamp": "2026-10-14T07:13:49.017Z",
+    "notes": "Customer completed checkout within 3 minutes of receiving SMS link."
+  },
+  {
+    "id": "HIST-200",
+    "caseId": "CASE-099",
+    "customerName": "Jonathan Rivera",
+    "channel": "shopify",
+    "actionTaken": "Manual Order Re-route to West Coast Distribution Hub",
+    "outcome": "COMPLETED",
+    "valueRescued": 1650,
+    "timestamp": "2026-10-14T04:23:49.017Z",
+    "notes": "Warehouse re-assigned inventory from secondary depot. Customer notified."
+  }
+]
