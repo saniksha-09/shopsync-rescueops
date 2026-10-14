@@ -85,6 +85,7 @@ npm start
 
 ---
 
+<<<<<<< HEAD
 ## 🧪 4. Live Hackathon Demo Walkthrough
 
 1. **Dashboard Overview**: Show the 4 concise manager metrics at the top.
@@ -107,6 +108,9 @@ npm start
    - Notice the case immediately appears in the queue ready for review.
 
 ---
+=======
+
+>>>>>>> a032d83a4b61b5ac2ad1b36572a597c6aeb2c70a
 
 ## 📄 License
 MIT License - see [LICENSE](LICENSE) for details.
