@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🛡️ ShopSync RescueOps
 ### *Autonomous Real-Time E-Commerce Incident & Revenue Recovery Engine*
 
@@ -151,3 +152,7 @@ When presenting to hackathon judges, follow this proven walkthrough:
 
 ## 📄 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+=======
+# shopsync-rescueops
+AI-powered WooCommerce customer recovery system using n8n automation.
+>>>>>>> 6c6ae2199b93e67642b4e51ce5c04e4c7dbffbc3
