@@ -110,45 +110,7 @@ npm start
 
 ---
 
-## 🎙️ 6. 3-Minute Hackathon Pitch Script (For Judges)
 
-When presenting to hackathon judges, follow this proven walkthrough:
-
-1. **The Hook (30 sec)**:
-   > *"Judges, imagine you run a multi-channel brand selling on Shopify and Amazon. Last night, an inventory sync script timed out during a sneaker drop, zeroing out your available stock. 420 buying customers saw 'Sold Out' while 650 shoes sat in your warehouse. You just lost \$14,000 without ever knowing it."*
-
-2. **The Introduce (30 sec)**:
-   > *"Meet **ShopSync RescueOps**—an autonomous operations command center that listens to store telemetry, detects sync glitches in 14 seconds, uses Google Gemini AI to analyze raw webhook payloads, and executes 1-click self-healing playbooks to rescue trapped revenue."*
-
-3. **The Live Demo (90 sec)**:
-   - Click **"Live Incident Simulator"** in the top bar.
-   - Select **"Flash Sale Inventory Lock & Sync Drop"** and click **Inject Scenario**.
-   - Show how **Revenue at Risk** jumps by **\$14,280** and an alert appears in the feed.
-   - Click **"AI Triage"** to open the inspection drawer:
-     - Show the **Gemini AI Plain English Summary** and **Technical Root Cause** (`ERR_INVENTORY_MUTEX_TIMEOUT_408`).
-     - Show the **Raw JSON Dead-Letter Queue** payload.
-   - Click **"Execute Rescue Playbook"**:
-     - Watch the 6-step autonomous reconciliation process complete in real time.
-     - Confetti fires, and **Verified Revenue Rescued** increments by **\$14,280**!
-     - Show the **Before vs. After Scorecard** and click **"Audit Trail"** to show the immutable compliance log.
-
-4. **The Close (30 sec)**:
-   > *"Instead of discovering outages 4 hours later through customer complaints, ShopSync RescueOps drops recovery time from hours to 84 seconds. That's real, measurable dollars returned directly to merchant bottom lines."*
-
----
-
-## ❓ 7. Hackathon Judge Q&A Cheat Sheet
-
-- **Q: Why not just use Datadog or Sentry?**  
-  *A:* "Sentry and Datadog are passive monitoring tools for software engineers—they tell you an HTTP 500 error occurred, but they don't know that SKU NK-PEGASUS has \$14,000 in GMV trapped, and they cannot execute domain-specific e-commerce playbooks like releasing Redis cart locks or re-encrypting HMAC webhook signatures."
-
-- **Q: How does the AI integration work?**  
-  *A:* "We send the unconsumed raw webhook payload, HTTP headers, and channel metadata to Google's Gemini 1.5 Flash model with strict schema constraints. It returns structured JSON containing both a merchant-friendly summary, technical root-cause code, and the recommended remediation playbook."
-
-- **Q: What happens if the Gemini API has network latency or quota issues?**  
-  *A:* "We implemented a dual-engine architecture: if Gemini is unreachable or no API key is provided, the system gracefully falls back to deterministic rule heuristics without throwing errors or breaking user flows."
-
----
 
 ## 📄 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
