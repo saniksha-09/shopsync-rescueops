@@ -1,5 +1,48 @@
 [
   {
+    "id": "INC-3813",
+    "title": "Flash Sale Inventory Lock & Sync Drop",
+    "description": "Shopify checkout completed 420 transactions, but Amazon Multi-Channel Fulfillment webhook timed out under peak load. Inventory is frozen, showing \"Out of Stock\" while 650 units remain in warehouse.",
+    "channel": "shopify",
+    "category": "inventory_desync",
+    "severity": "CRITICAL",
+    "status": "active",
+    "revenueAtRisk": 14280,
+    "revenueRescued": 0,
+    "affectedItemsCount": 420,
+    "detectedAt": "2026-10-14T10:17:30.028Z",
+    "resolvedAt": null,
+    "rootCauseCode": "ERR_INVENTORY_MUTEX_TIMEOUT_408",
+    "storeName": "AeroStyle Direct (Shopify Plus)",
+    "customerImpact": "420 buyers blocked during high-traffic sneaker drop",
+    "rawPayload": {
+      "event": "inventory_level.update",
+      "channel": "shopify_plus",
+      "warehouse_id": "wh_us_east_04",
+      "sku": "NK-PEGASUS-BLK-10",
+      "product_name": "Nike Air Zoom Pegasus 40 - Black/White (US 10)",
+      "reported_quantity": 0,
+      "physical_warehouse_count": 650,
+      "reserved_in_uncommitted_checkouts": 420,
+      "error_message": "Gateway HTTP 408: Distributed lock could not be acquired within 3500ms timeout window. Transaction rolled back to conservative zero.",
+      "http_status": 408,
+      "latency_ms": 3840,
+      "trace_id": "tr_7f9c21b0_shpfy_mcf_001"
+    },
+    "aiDiagnosis": {
+      "summary": "Race condition between physical ERP counts and shopify active reserves caused inventory to falsely lock up.",
+      "technicalDiagnosis": "Lock acquisition timeout in distributed stock cache during multi-channel delta sync. Transaction rolled back to safety threshold.",
+      "rootCauseCode": "ERR_INVENTORY_MUTEX_TIMEOUT_408",
+      "impactAssessment": "$14,280 GMV blocked; 420 units unavailable to buying customers.",
+      "recommendedPlaybook": "reconcile_inventory",
+      "confidenceScore": 94,
+      "isAiGenerated": false,
+      "modelUsed": "Intelligent Fallback Engine (No API Key)"
+    },
+    "recoveryLogs": [],
+    "playbookExecuted": null
+  },
+  {
     "id": "INC-9014",
     "title": "Shopify Checkout Webhook Dropped on Black Friday Tier SKU",
     "description": "14 successful buyer orders on Shopify did not sync to the 3PL fulfillment warehouse due to an invalid HMAC secret rotation.",
